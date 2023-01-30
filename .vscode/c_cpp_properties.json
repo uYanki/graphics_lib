@@ -1,0 +1,12 @@
+// {
+//     "configurations": [
+//         {
+//             "includePath": [
+//                 "${workspaceFolder}/**",
+//                 "C:\\mingw64\\x86_64-w64-mingw32\\include\\"
+//             ],
+//             "compilerPath": "C:/mingw64/bin/",
+//         }
+//     ],
+//     "version": 4
+// }
