@@ -8,7 +8,7 @@ int main()
 
     vp.fill_screen(WHITE);
 
-#if 0
+#if 1
     gl_rect box(20, 20, 10, 10);
 
     for (gl_uint8 i = 0; i < 8; ++i)
@@ -44,6 +44,7 @@ int main()
 
     vp.flood_fill(box.hcenter(), box.vcenter(), WHITE, RED, false);
     // vp.flood_fill(box.hcenter(), box.vcenter(), WHITE, RED, true);
+
 #else
 
     gl_rect box(vp.screen);
@@ -56,8 +57,9 @@ int main()
     vp.draw_circle(box.hcenter() - offset, box.vcenter(), offset / 3, BLACK);
     vp.draw_circle(box.hcenter() + offset, box.vcenter(), offset / 3, BLACK);
 
-    // vp.scanline_fill(box.hcenter(), box.vcenter(), WHITE, RED);
-    vp.scanline_fill(box.hcenter(), box.vcenter() - offset, WHITE, RED);
+    vp.draw_vline(0, 0, vp.screen.vcenter(), GREEN);
+    vp.scanline_fill(box.hcenter(), box.vcenter(), WHITE, RED);
+    // vp.scanline_fill(box.hcenter(), box.vcenter() - offset, WHITE, RED);
 
 #endif
 

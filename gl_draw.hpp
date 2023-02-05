@@ -5,6 +5,12 @@
 template <class gl_device, typename gl_color, typename = typename std::enable_if<std::is_class<gl_device>::value>::type>
 class gl_draw : public gl_device {
 public:
+    struct gl_image {
+        gl_uint16 width;
+        gl_uint16 height;
+        gl_color* buffer;
+    };
+
     gl_draw(void) : gl_device() {}
     ~gl_draw() {}
 
@@ -17,6 +23,30 @@ public:
     void reset_clip(gl_rect rc)
     {
         m_cliprect = screen;
+    }
+
+    void draw(gl_draw& other, const gl_rect& src, const gl_point& dst = gl_point(0, 0))
+    {
+        gl_rect rc(dst.x, dst.y, src.width(), src.height());
+        if (rc.intersect_with(m_cliprect, true)) {
+            gl_uint w    = rc.width(),
+                    dstx = rc.left(),
+                    srcx = src.left() + (dstx - dst.x);
+            while (w--) {
+                gl_uint h    = rc.height(),
+                        dsty = rc.top(),
+                        srcy = src.top() + (dsty - dst.y);
+                while (h--) {
+                    gl_device::basic_set_pixel(
+                        dstx, dsty,
+                        other.gl_device::basic_get_pixel(srcx, srcy));
+                    ++srcy;
+                    ++dsty;
+                }
+                ++srcx;
+                ++dstx;
+            }
+        }
     }
 
     void draw_pixel(gl_int x, gl_int y, gl_color cr)
@@ -77,7 +107,7 @@ public:
 #endif
     }
 
-#if 1
+#if 0
     void test_draw_line(void)
     {
         // const gl_uint32 W = width;
@@ -433,7 +463,7 @@ public:
 
     // 泛洪算法（未支持剪辑区） FloodFIll/SeedFill: https://blog.csdn.net/mmm_jsw/article/details/83715031
 
-    void flood_fill(gl_int x, gl_int y, gl_color old_cr, gl_color new_cr, bool opt = false /* false:四领域,true:八领域*/)  // 四邻域泛洪
+    void flood_fill(gl_int x, gl_int y, gl_color old_cr, gl_color new_cr, bool opt = false /* false:四领域,true:八领域*/)
     {
         if (new_cr == old_cr) return;  // avoid infinite loop
 
@@ -448,22 +478,25 @@ public:
             static const gl_int8 dy[8] = {-1, 0, 1, 0, -1, 1, 1, -1};
 
             // const gl_uint size = 200;
-            const gl_uint size = screen.area();
+            const gl_uint size = screen.area();  // >0
 
             const gl_uint cnt = opt ? 8 : 4;
 
             gl_uint index = 0;
             gl_int  stack_x[size], stack_y[size];
 
+            // push
             stack_x[index] = x;
             stack_y[index] = y;
             ++index;
 
             while (index--) {
+                // pop
                 gl_device::basic_set_pixel(x = stack_x[index], y = stack_y[index], new_cr);
                 for (gl_uint8 i = 0; i < cnt; i++) {
                     gl_int nx = x + dx[i], ny = y + dy[i];
                     if (screen.contains(nx, ny) && gl_device::basic_get_pixel(nx, ny) == old_cr) {
+                        // push
                         stack_x[index] = nx;
                         stack_y[index] = ny;
                         if (++index == size)
@@ -482,55 +515,23 @@ public:
 
     void scanline_fill(gl_int x, gl_int y, gl_color old_cr, gl_color new_cr)
     {
-        if (new_cr == old_cr || gl_device::basic_get_pixel(x, y) != old_cr) return;
-
+        if (new_cr == old_cr) return;
         if (!screen.contains(x, y)) return;
+        if (gl_device::basic_get_pixel(x, y) != old_cr) return;
 
-        const gl_uint w = screen.width(), h = screen.height();
-
-#if 1
+#if 0
 
         // 递归算法
 
-        gl_int x1 = x;
-        while (x1 < w && gl_device::basic_get_pixel(x1, y) == old_cr) {
-            gl_device::basic_set_pixel(x1, y, new_cr);
-            ++x1;
-        }
-        x1 = x - 1;
-        while (x1 >= 0 && gl_device::basic_get_pixel(x1, y) == old_cr) {
-            gl_device::basic_set_pixel(x1, y, new_cr);
-            --x1;
-        }
-        x1 = x;
-        while (x1 < w && gl_device::basic_get_pixel(x1, y) == new_cr) {
-            if (y < h - 1 && gl_device::basic_get_pixel(x1, y + 1) == old_cr)
-                scanline_fill(x1, y + 1, old_cr, new_cr);
-            ++x1;
-        }
-        x1 = x - 1;
-        while (x1 > 0 && gl_device::basic_get_pixel(x1, y) == new_cr) {
-            if (y > 0 && gl_device::basic_get_pixel(x1, y + 1) == old_cr)
-                scanline_fill(x1, y + 1, old_cr, new_cr);
-            --x1;
-        }
-        x1 = x;
-        while (x1 < w && gl_device::basic_get_pixel(x1, y) == new_cr) {
-            if (y < h - 1 && gl_device::basic_get_pixel(x1, y - 1) == old_cr)
-                scanline_fill(x1, y - 1, old_cr, new_cr);
-            ++x1;
-        }
-        x1 = x - 1;
-        while (x1 > 0 && gl_device::basic_get_pixel(x1, y) == new_cr) {
-            if (y > 0 && gl_device::basic_get_pixel(x1, y - 1) == old_cr)
-                scanline_fill(x1, y - 1, old_cr, new_cr);
-            --x1;
-        }
+        _scanline_fill(x, y, old_cr, new_cr);
+
 #else
 
         // 栈算法
 
-        const gl_uint size = 255;
+        static const gl_uint w = screen.width(), h = screen.height();
+
+        const gl_uint size = 255;  //>0
         // const gl_uint size = screen.area();
 
         gl_uint idx = 0;
@@ -543,44 +544,92 @@ public:
 
         bool span_above, span_below;
 
-        gl_int x1;
-
         while (idx--) {
-            x  = stack_x[idx];
-            y  = stack_y[idx];
-            x1 = x;
-            while (x1 > 0 && gl_device::basic_get_pixel(x1, y) == old_cr) --x1;
-            ++x1;
+            // pop
+            x = stack_x[idx];
+            y = stack_y[idx];
+
+            while (x > -1 && gl_device::basic_get_pixel(x, y) == old_cr) --x;
+
             span_above = span_below = false;
-            while (x1 < w && gl_device::basic_get_pixel(x1, y) == old_cr) {
-                gl_device::basic_set_pixel(x1, y, new_cr);
+
+            while (++x < w && gl_device::basic_get_pixel(x, y) == old_cr) {
+                gl_device::basic_set_pixel(x, y, new_cr);
 
                 if (y > 0) {
-                    if (!span_above && gl_device::basic_get_pixel(x1, y - 1) == old_cr) {
-                        stack_x[idx] = x1;
-                        stack_y[idx] = y - 1;
-                        if (++idx == size) break;
-                        span_above = true;
-                    } else if (span_above && gl_device::basic_get_pixel(x1, y - 1) != old_cr) {
-                        span_above = false;
+                    if (span_above) {
+                        if (gl_device::basic_get_pixel(x, y - 1) != old_cr) {
+                            span_above = false;
+                        }
+                    } else {
+                        if (gl_device::basic_get_pixel(x, y - 1) == old_cr) {
+                            // push
+                            stack_x[idx] = x;
+                            stack_y[idx] = y - 1;
+                            if (++idx == size) break;
+                            span_above = true;
+                        }
                     }
                 }
 
                 if (y < h - 1) {
-                    if (!span_below && gl_device::basic_get_pixel(x1, y + 1) == old_cr) {
-                        stack_x[idx] = x1;
-                        stack_y[idx] = y + 1;
-                        if (++idx == size) break;
-                        span_below = true;
-                    } else if (span_below && gl_device::basic_get_pixel(x1, y + 1) != old_cr) {
-                        span_below = false;
+                    if (span_below) {
+                        if (gl_device::basic_get_pixel(x, y + 1) != old_cr) {
+                            span_below = false;
+                        }
+                    } else {
+                        if (gl_device::basic_get_pixel(x, y + 1) == old_cr) {
+                            // push
+                            stack_x[idx] = x;
+                            stack_y[idx] = y + 1;
+                            if (++idx == size) break;
+                            span_below = true;
+                        }
                     }
                 }
-                ++x1;
             }
         }
 
 #endif
+    }
+
+    // 卷积（外围补零）
+    void conv(
+        gl_int8* core,  // arr[core_w][core_h]
+        gl_uint8 w,
+        gl_uint8 h,  // core size
+        gl_uint8 xc = 0,
+        gl_uint8 yc = 0  // core center
+    )
+    {
+        if (xc >= w || yc >= h) return;
+
+        gl_color buff[screen.width()][screen.height()] = {0};
+
+        gl_uint x, y;
+
+        gl_int8 idx, dx, dy;  // for core
+        gl_int  sum;
+
+        const gl_uint8 size = w * h;
+
+        w -= xc;
+        h -= yc;
+
+        for (x = 0; x < screen.width(); ++x) {
+            for (y = 0; y < screen.height(); ++y) {
+                idx = sum = 0;
+                for (dx = -xc; dx < w; ++dx)
+                    for (dy = -yc; dy < h; ++dy)
+                        if (screen.contains(x + dx, y + dy))
+                            sum += gl_device::color_to_gray(gl_device::basic_get_pixel(x + dx, y + dy)) * core[idx++];
+                buff[x][y] = sum / size;
+            }
+        }
+
+        for (x = 0; x < screen.width(); ++x)
+            for (y = 0; y < screen.height(); ++y)
+                gl_device::basic_set_pixel(x, y, gl_device::gray_to_color(buff[x][y]));
     }
 
 private:
@@ -748,6 +797,46 @@ private:
                     _flood_fill(x + 1, y - 1, old_cr, new_cr, opt);
                 }
             }
+        }
+    }
+
+    void _scanline_fill(gl_int x, gl_int y, gl_color old_cr, gl_color new_cr)
+    {
+        static const gl_uint w = screen.width(), h = screen.height();
+
+        gl_int x1 = x;
+        while (x1 < w && gl_device::basic_get_pixel(x1, y) == old_cr) {
+            gl_device::basic_set_pixel(x1, y, new_cr);
+            ++x1;
+        }
+        x1 = x - 1;
+        while (x1 >= 0 && gl_device::basic_get_pixel(x1, y) == old_cr) {
+            gl_device::basic_set_pixel(x1, y, new_cr);
+            --x1;
+        }
+        x1 = x;
+        while (x1 < w && gl_device::basic_get_pixel(x1, y) == new_cr) {
+            if (y < h - 1 && gl_device::basic_get_pixel(x1, y + 1) == old_cr)
+                _scanline_fill(x1, y + 1, old_cr, new_cr);
+            ++x1;
+        }
+        x1 = x - 1;
+        while (x1 > 0 && gl_device::basic_get_pixel(x1, y) == new_cr) {
+            if (y > 0 && gl_device::basic_get_pixel(x1, y + 1) == old_cr)
+                _scanline_fill(x1, y + 1, old_cr, new_cr);
+            --x1;
+        }
+        x1 = x;
+        while (x1 < w && gl_device::basic_get_pixel(x1, y) == new_cr) {
+            if (y < h - 1 && gl_device::basic_get_pixel(x1, y - 1) == old_cr)
+                _scanline_fill(x1, y - 1, old_cr, new_cr);
+            ++x1;
+        }
+        x1 = x - 1;
+        while (x1 > 0 && gl_device::basic_get_pixel(x1, y) == new_cr) {
+            if (y > 0 && gl_device::basic_get_pixel(x1, y - 1) == old_cr)
+                _scanline_fill(x1, y - 1, old_cr, new_cr);
+            --x1;
         }
     }
 

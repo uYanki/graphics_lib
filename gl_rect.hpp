@@ -42,7 +42,26 @@ public:
     gl_point center(void) const { return gl_point(hcenter(), vcenter()); }
     gl_int   area(void) const { return width() * height(); }
 
-    bool is_empty(void) const { return m_left >= m_right || m_top >= m_bottom; }
+    gl_rect part(gl_selection opt = Selection_ALL) const
+    {
+        switch (opt) {
+            case Selection_Left: return gl_rect(left(), top(), width() / 2, height());
+            case Selection_Right: return gl_rect(hcenter(), top(), width() / 2, height());
+            case Selection_Top: return gl_rect(left(), top(), width(), height() / 2);
+            case Selection_Bottom: return gl_rect(left(), vcenter(), width(), height() / 2);
+            case Selection_LeftTop: return gl_rect(left(), top(), width() / 2, height() / 2);
+            case Selection_RightTop: return gl_rect(hcenter(), top(), width() / 2, height() / 2);
+            case Selection_LeftBottom: return gl_rect(left(), vcenter(), width() / 2, height() / 2);
+            case Selection_RightBottom: return gl_rect(hcenter(), vcenter(), width() / 2, height() / 2);
+            case Selection_ALL: return gl_rect(*this);
+        }
+        return gl_rect();  // null rect
+    }
+
+    bool is_empty(void) const
+    {
+        return m_left >= m_right || m_top >= m_bottom;
+    }
 
     gl_rect& set_origin(const gl_int x = 0, const gl_int y = 0)
     {
@@ -142,7 +161,7 @@ public:
 
     gl_rect& print(void)
     {
-        printf("(%d,%d,%d,%d) %d,%d\n", m_left, m_top, m_right, m_bottom, width(), height());
+        printf("(x1=%d,y1=%d,x2=%d,y2=%d) w=%d,h=%d\n", m_left, m_top, m_right, m_bottom, width(), height());
         return *this;
     }
 

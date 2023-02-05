@@ -2,7 +2,6 @@
 
 #include "gl_draw.hpp"
 #include "gl_utils.hpp"
-#include "gl_viewport.hpp"
 
 class gl_device_ssd1306 {
 public:

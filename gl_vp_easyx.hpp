@@ -34,19 +34,32 @@ public:
         EndBatchDraw();
     }
 
-protected:
-    // gl_color* const operator[](const gl_uint16 i)
-    // {
-    //     return buffer[i];
-    // }
+    gl_uint8 color_to_gray(gl_color cr)
+    {
+        return ((cr >> 16) & 0xFF) * 0.299 + ((cr >> 8) & 0xFF) * 0.587 + (cr & 0xFF) * 0.114;  // rgb2gray
+    }
 
+    gl_color gray_to_color(gl_uint8 gray)
+    {
+        return (gray << 16) | (gray << 8) | gray;
+    }
+
+protected:
     gl_color basic_get_pixel(gl_uint16 x, gl_uint16 y)
     {
+#if 0
+        if (x >= SCREEN_WIDTH || y >= SCREEN_HEIGHT)
+            printf("basic_get_pixel:%d,%d\n", x, y);
+#endif
         return buffer[x][y];
     }
 
     void basic_set_pixel(gl_uint16 x, gl_uint16 y, gl_color cr)
     {
+#if 0
+        if (x >= SCREEN_WIDTH || y >= SCREEN_HEIGHT)
+            printf("basic_set_pixel:%d,%d\n", x, y);
+#endif
         buffer[x][y] = cr;
     }
 

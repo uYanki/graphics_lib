@@ -61,6 +61,7 @@ int main()
         vp.draw_line(center_x, center_y, secondEnd_x, secondEnd_y, BLACK);  // 画秒针
         vp.draw_line(center_x, center_y, minuteEnd_x, minuteEnd_y, GREEN);  // 画分针
         vp.draw_line(center_x, center_y, hourEnd_x, hourEnd_y, RED);        // 画时针
+
         vp.update();
     }
 

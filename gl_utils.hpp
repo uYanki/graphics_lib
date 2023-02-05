@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <math.h>
+#include <string.h>
 
 #include <type_traits>
 // using namespace std;
